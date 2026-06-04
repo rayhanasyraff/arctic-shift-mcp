@@ -1,0 +1,28 @@
+{
+  "name": "arctic-shift-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for the Arctic Shift Reddit archive (coverage up to ~February 2026). No API key required.",
+  "main": "dist/index.js",
+  "bin": {
+    "arctic-shift-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && node -e \"const fs=require('fs');const f='dist/index.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'))\"",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["mcp", "reddit", "arctic-shift", "archive"],
+  "author": "brayanguinand",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
