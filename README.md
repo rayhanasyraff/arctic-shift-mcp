@@ -1,6 +1,6 @@
 # arctic-shift-mcp
 
-MCP server for the [Arctic Shift](https://arctic-shift.photon-reddit.com) Reddit archive. Covers content from **2005 to ~February 2026** — including the 9-month gap (May 2025–Feb 2026) that PullPush doesn't have.
+MCP server for the [Arctic Shift](https://arctic-shift.photon-reddit.com) Reddit archive. Covers **May 2025 to today** with a ~24-48h indexing lag. The main complement to PullPush for AI tools.
 
 No Reddit API key, no credentials, no authentication. Just install and run.
 
@@ -10,19 +10,21 @@ Reddit search is broken for AI tools:
 - `site:reddit.com` in web search returns almost nothing useful
 - Reddit's official API became paid in 2023 (the change that killed Apollo)
 - [PullPush](https://pullpush.io) covers up to May 2025 only
-- [reddit-mcp-buddy](https://github.com/karanb192/reddit-mcp-buddy) hits Reddit's live endpoints, which get blocked or rate-limited
+- [reddit-mcp-buddy](https://github.com/karanb192/reddit-mcp-buddy) hits Reddit's live endpoints, which get blocked or rate-limited intermittently
 
-Arctic Shift is an independent archive that doesn't call Reddit at query time. It covers the gap between PullPush and today, and it's fast.
+Arctic Shift is an independent archive that doesn't call Reddit at query time. It covers everything from May 2025 to today, and it's fast.
 
 ## Coverage
 
 ```
 PullPush          ████████████████████░░░░░░░░░  2005 → May 2025
-arctic-shift-mcp  ░░░░░░░░░░░░░░░░░░░░████████░  May 2025 → Feb 2026
-Reddit Buddy      ░░░░░░░░░░░░░░░░░░░░░░░░░░░██  Feb 2026 → today (live)
+arctic-shift-mcp  ░░░░░░░░░░░░░░░░░░░░█████████  May 2025 → today (~48h lag)
+Reddit Buddy      ░░░░░░░░░░░░░░░░░░░░░░░░░░░██  live (frequently blocked)
 ```
 
-Use all three together for full Reddit coverage.
+**Note on recent posts:** engagement data (scores, comment counts) is fully indexed for posts older than ~48h. Posts from the last 24-48h are present but show `score: 1, comments: 0` until indexing catches up — use `sort_by: date_desc` for very recent content.
+
+Use PullPush + arctic-shift-mcp together for complete Reddit coverage from 2005 to today.
 
 ## Install
 
@@ -96,8 +98,8 @@ For full Reddit coverage across all time periods:
 
 ```bash
 npm install -g pullpush-mcp          # 2005 → May 2025
-npm install -g arctic-shift-mcp      # May 2025 → Feb 2026  ← this package
-npm install -g reddit-mcp-buddy      # Feb 2026 → today (live, may be rate-limited)
+npm install -g arctic-shift-mcp      # May 2025 → today (~48h lag)  ← this package
+npm install -g reddit-mcp-buddy      # live (last resort, frequently blocked by Reddit)
 ```
 
 ## Stack
