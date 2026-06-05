@@ -1,6 +1,6 @@
 {
   "name": "arctic-shift-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MCP server for the Arctic Shift Reddit archive. Covers May 2025 to today (48h indexing lag). No API key required.",
   "main": "dist/index.js",
   "bin": {

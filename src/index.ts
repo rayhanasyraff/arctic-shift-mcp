@@ -90,7 +90,7 @@ function flattenTree(comments: any[], depth = 0): string[] {
 // ─── MCP server ─────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "arctic-shift-mcp", version: "1.0.0" },
+  { name: "arctic-shift-mcp", version: "1.0.2" },
   { capabilities: { tools: {} } }
 );
 
