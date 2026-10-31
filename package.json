@@ -9,17 +9,23 @@
   "scripts": {
     "build": "tsc && node -e \"const fs=require('fs');const f='dist/index.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'))\"",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "supergateway --stdio \"node dist/index.js\" --outputTransport streamableHttp --port $PORT --host 0.0.0.0 --healthEndpoint /healthz --apiKey \"$MCP_API_KEY\""
   },
-  "keywords": ["mcp", "reddit", "arctic-shift", "archive"],
+  "keywords": [
+    "mcp",
+    "reddit",
+    "arctic-shift",
+    "archive"
+  ],
   "author": "brayanguinand",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "supergateway": "^4.2.1"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   },
   "type": "module",
   "engines": {
