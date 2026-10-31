@@ -43,7 +43,11 @@ If npm installed the binary elsewhere, use `which arctic-shift-mcp` to find the 
 ## Tools
 
 ### `get_post`
-Fetch a single post (title, full body, stats) plus its comment tree from any Reddit link. Handles `/s/` share links copied from the Reddit app by following Reddit's redirect to the real `/comments/<id>/` URL. If the link points at a comment, that comment is shown too.
+Fetch Reddit content from any Reddit link. Handles `/s/` share links copied from the Reddit app (for posts and comments alike) by following Reddit's redirect to the real URL.
+
+- **Post link** → title, full body, stats, and the comment tree.
+- **Comment link** → post header, up to 3 parent comments for context, the shared comment in full, and its reply thread.
+- **Subreddit/profile link** → a clear error pointing to `search_submissions`.
 
 ```
 url_or_id      Share link, /comments/ URL, comment permalink, redd.it link, or post ID (required)
