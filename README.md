@@ -42,6 +42,14 @@ If npm installed the binary elsewhere, use `which arctic-shift-mcp` to find the 
 
 ## Tools
 
+### `get_post`
+Fetch a single post (title, full body, stats) plus its comment tree from any Reddit link. Handles `/s/` share links copied from the Reddit app by following Reddit's redirect to the real `/comments/<id>/` URL. If the link points at a comment, that comment is shown too.
+
+```
+url_or_id      Share link, /comments/ URL, comment permalink, redd.it link, or post ID (required)
+comment_limit  Max comments to include (default 50, max 500, 0 for none)
+```
+
 ### `search_submissions`
 Search Reddit posts by keyword, subreddit, author, date range, or flair.
 
@@ -76,7 +84,7 @@ limit      Results to return (1-100, default 20)
 Get the full nested comment tree for a post, sorted by score.
 
 ```
-link_id  Post ID, required (e.g. "1abc2d3", with or without t3_ prefix)
+link_id  Post ID or any Reddit post URL, required (e.g. "1abc2d3", "t3_1abc2d3", or a /s/ share link)
 limit    Max comments to return (default 50, max 500)
 ```
 

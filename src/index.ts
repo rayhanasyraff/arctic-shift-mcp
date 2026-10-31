@@ -43,6 +43,65 @@ async function fetchAPI(
   return json.data;
 }
 
+// ─── Reddit link resolution ─────────────────────────────────────────────────
+
+interface RedditRef {
+  postId: string;
+  commentId?: string;
+}
+
+// Share links (reddit.com/r/<sub>/s/<code>) hide the post ID; Reddit answers
+// them with a 301 whose Location is the canonical /comments/<id>/ URL.
+async function resolveShareLink(url: string): Promise<string> {
+  let current = url;
+  for (let hop = 0; hop < 5; hop++) {
+    const res = await fetch(current, {
+      redirect: "manual",
+      headers: { "User-Agent": "arctic-shift-mcp/1.1.0" },
+    });
+    const location = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && location) {
+      current = new URL(location, current).toString();
+      if (/\/comments\/[a-z0-9]+/i.test(current)) return current;
+      continue;
+    }
+    throw new Error(
+      `Could not resolve share link (Reddit returned HTTP ${res.status}). ` +
+        "Ask for the full URL containing /comments/<id>/ or the post title instead."
+    );
+  }
+  throw new Error("Could not resolve share link: too many redirects.");
+}
+
+// Accepts a bare post ID (with or without t3_), a full post/comment URL,
+// a redd.it short link, or a /s/ share link.
+async function parseRedditRef(input: string): Promise<RedditRef> {
+  let s = input.trim();
+
+  if (!/[/.]/.test(s)) {
+    return { postId: s.replace(/^t3_/, "") };
+  }
+
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+
+  if (/reddit\.com\/r\/[^/]+\/s\/[a-z0-9]+/i.test(s) || /reddit\.com\/s\/[a-z0-9]+/i.test(s)) {
+    s = await resolveShareLink(s);
+  }
+
+  const short = s.match(/redd\.it\/([a-z0-9]+)/i);
+  if (short) return { postId: short[1] };
+
+  // /comments/<post>/<slug>/<comment>/ (old style) or /comments/<post>/comment/<comment>/
+  const m = s.match(/\/comments\/([a-z0-9]+)(?:\/([^/?#]*))?(?:\/([a-z0-9]+))?/i);
+  if (!m) throw new Error(`Not a recognisable Reddit post link or ID: ${input}`);
+
+  const postId = m[1];
+  let commentId: string | undefined;
+  if (m[2] === "comment" && m[3]) commentId = m[3];
+  else if (m[2] && m[3]) commentId = m[3];
+  return { postId, commentId };
+}
+
 // ─── Formatters ─────────────────────────────────────────────────────────────
 
 function formatPost(p: any): string {
@@ -90,16 +149,39 @@ function flattenTree(comments: any[], depth = 0): string[] {
 // ─── MCP server ─────────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "arctic-shift-mcp", version: "1.0.2" },
+  { name: "arctic-shift-mcp", version: "1.1.0" },
   { capabilities: { tools: {} } }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
+      name: "get_post",
+      description:
+        "Fetch one Reddit post (title, full body, stats) plus its top comments from any Reddit link or post ID. " +
+        "Accepts share links (reddit.com/r/<sub>/s/<code>, as copied from the Reddit app), " +
+        "full /comments/ URLs, comment permalinks, redd.it short links, or bare IDs. " +
+        "Use this whenever the user pastes a Reddit link.",
+      inputSchema: {
+        type: "object",
+        required: ["url_or_id"],
+        properties: {
+          url_or_id: {
+            type: "string",
+            description: "Any Reddit post/comment URL (including /s/ share links) or a post ID",
+          },
+          comment_limit: {
+            type: "number",
+            description: "Max comments to include (default 50, max 500, 0 for none)",
+            default: 50,
+          },
+        },
+      },
+    },
+    {
       name: "search_submissions",
       description:
-        "Search Reddit posts in the Arctic Shift archive (coverage up to ~February 2026). " +
+        "Search Reddit posts in the Arctic Shift archive (covers 2005 to today, usually within hours). " +
         "Searches by keyword, subreddit, author, date range. " +
         "Use sort_by to rank results by score or num_comments (client-side after fetching).",
       inputSchema: {
@@ -202,7 +284,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           link_id: {
             type: "string",
-            description: "Post ID (e.g. '1abc2d3', with or without t3_ prefix)",
+            description: "Post ID (e.g. '1abc2d3', with or without t3_ prefix) or any Reddit post URL, including /s/ share links",
           },
           limit: {
             type: "number",
@@ -219,6 +301,59 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
+    // ── get_post ───────────────────────────────────────────────────────────
+    if (name === "get_post") {
+      const ref = await parseRedditRef(String(args?.url_or_id ?? ""));
+      const commentLimit = Math.min((args?.comment_limit as number) ?? 50, 500);
+
+      const posts: any[] = await fetchAPI("/api/posts/ids", {
+        ids: ref.postId,
+        fields: POST_FIELDS,
+      });
+      const p = posts?.[0];
+      if (!p) {
+        return {
+          content: [{ type: "text", text: `Post ${ref.postId} is not in the Arctic Shift archive (yet).` }],
+        };
+      }
+
+      const date = new Date(p.created_utc * 1000).toISOString().split("T")[0];
+      const body = p.selftext ? p.selftext.slice(0, 5000) : "";
+      const sections: string[] = [
+        [
+          `[${p.id}] ${p.title}`,
+          `r/${p.subreddit} • u/${p.author} • score: ${p.score} • comments: ${p.num_comments} • ${date}`,
+          p.link_flair_text ? `flair: ${p.link_flair_text}` : null,
+          p.url && !p.url.includes(`/comments/${p.id}`) ? `linked url: ${p.url}` : null,
+          `link: https://reddit.com/r/${p.subreddit}/comments/${p.id}/`,
+          body ? `\n${body}${p.selftext.length > 5000 ? "\n…[truncated]" : ""}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      ];
+
+      if (ref.commentId) {
+        const linked: any[] = await fetchAPI("/api/comments/ids", {
+          ids: ref.commentId,
+          fields: COMMENT_FIELDS,
+        });
+        if (linked?.[0]) {
+          sections.push(`Linked comment:\n${formatComment(linked[0])}`);
+        }
+      }
+
+      if (commentLimit > 0) {
+        const tree: any[] = await fetchAPI("/api/comments/tree", {
+          link_id: p.id,
+          limit: commentLimit,
+        });
+        const lines = tree?.length ? flattenTree(Array.isArray(tree) ? tree : [tree]) : [];
+        sections.push(lines.length ? `Comments:\n${lines.join("\n")}` : "No comments archived.");
+      }
+
+      return { content: [{ type: "text", text: sections.join("\n\n---\n\n") }] };
+    }
+
     // ── search_submissions ─────────────────────────────────────────────────
     if (name === "search_submissions") {
       const sortBy = (args?.sort_by as string) ?? "date_desc";
@@ -305,7 +440,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // ── get_post_comments ──────────────────────────────────────────────────
     if (name === "get_post_comments") {
-      const rawId = (args?.link_id as string).replace(/^t3_/, "");
+      const rawId = (await parseRedditRef(String(args?.link_id ?? ""))).postId;
       const limit = (args?.limit as number) ?? 50;
 
       const params: Record<string, any> = {
